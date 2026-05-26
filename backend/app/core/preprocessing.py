@@ -8,10 +8,13 @@ def preprocess_image(image: Image.Image):
 
     image = np.array(image)
 
+    # invert colors
     image = 255 - image
 
-    image[image < 20] = 0
+    # threshold
+    image[image < 50] = 0
 
+    # find drawing pixels
     coords = np.argwhere(image > 0)
 
     if len(coords) > 0:
@@ -19,13 +22,30 @@ def preprocess_image(image: Image.Image):
         y0, x0 = coords.min(axis=0)
         y1, x1 = coords.max(axis=0)
 
-        image = image[y0:y1, x0:x1]
+        image = image[y0:y1 + 1, x0:x1 + 1]
 
-    pil_image = Image.fromarray(image)
+    # create square canvas
+    h, w = image.shape
 
-    pil_image = pil_image.resize((28, 28))
+    size = max(h, w)
 
-    image = np.array(pil_image).astype(np.float32)
+    square = np.zeros((size, size))
+
+    y_offset = (size - h) // 2
+    x_offset = (size - w) // 2
+
+    square[
+        y_offset:y_offset+h,
+        x_offset:x_offset+w
+    ] = image
+
+    image = Image.fromarray(
+        square.astype(np.uint8)
+    )
+
+    image = image.resize((28, 28))
+
+    image = np.array(image).astype(np.float32)
 
     image = image / 255.0
 
