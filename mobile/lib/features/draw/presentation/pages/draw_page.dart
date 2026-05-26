@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:http/http.dart' as http;
+
+import '../../data/draw_api_service.dart';
 
 import '../painters/drawing_painter.dart';
 
@@ -22,6 +22,9 @@ class _DrawPageState extends State<DrawPage> {
   final GlobalKey canvasKey = GlobalKey();
   final GlobalKey drawingKey = GlobalKey();
 
+  final DrawApiService apiService =
+  DrawApiService();
+
   List<Offset?> points = [];
 
   String prediction = "";
@@ -38,16 +41,19 @@ class _DrawPageState extends State<DrawPage> {
           .findRenderObject()
       as RenderRepaintBoundary;
 
-      ui.Image image = await boundary.toImage(
+      ui.Image image =
+      await boundary.toImage(
         pixelRatio: 3.0,
       );
 
       ByteData? byteData =
       await image.toByteData(
-        format: ui.ImageByteFormat.png,
+        format:
+        ui.ImageByteFormat.png,
       );
 
-      return byteData?.buffer.asUint8List();
+      return byteData?.buffer
+          .asUint8List();
 
     } catch (e) {
 
@@ -79,47 +85,21 @@ class _DrawPageState extends State<DrawPage> {
         return;
       }
 
-      var request = http.MultipartRequest(
-
-        'POST',
-
-        Uri.parse(
-          'http://10.0.2.2:8000/predict',
-        ),
+      final result =
+      await apiService
+          .predictDrawing(
+        imageBytes,
       );
 
-      request.files.add(
-
-        http.MultipartFile.fromBytes(
-
-          'file',
-
-          imageBytes,
-
-          filename: 'drawing.png',
-        ),
-      );
-
-      var response =
-      await request.send();
-
-      if (response.statusCode == 200) {
-
-        final responseString =
-        await response.stream
-            .bytesToString();
-
-        final json = jsonDecode(
-          responseString,
-        );
+      if (result != null) {
 
         setState(() {
 
           prediction =
-          json['prediction'];
+          result['prediction'];
 
           confidence =
-          json['confidence'];
+          result['confidence'];
 
           isLoading = false;
         });
@@ -129,10 +109,6 @@ class _DrawPageState extends State<DrawPage> {
         setState(() {
           isLoading = false;
         });
-
-        debugPrint(
-          'Request failed',
-        );
       }
 
     } catch (e) {
@@ -174,8 +150,11 @@ class _DrawPageState extends State<DrawPage> {
                 setState(() {
 
                   RenderBox renderBox =
-                  drawingKey.currentContext!
+
+                  drawingKey
+                      .currentContext!
                       .findRenderObject()
+
                   as RenderBox;
 
                   points.add(
@@ -198,18 +177,21 @@ class _DrawPageState extends State<DrawPage> {
 
                 child: Container(
 
-                  decoration: BoxDecoration(
+                  decoration:
+                  BoxDecoration(
 
                     color: Colors.white,
 
                     border: Border.all(
-                      color: Colors.black12,
+                      color:
+                      Colors.black12,
                     ),
                   ),
 
                   child: CustomPaint(
 
-                    painter: DrawingPainter(
+                    painter:
+                    DrawingPainter(
                       points,
                     ),
 
@@ -222,7 +204,8 @@ class _DrawPageState extends State<DrawPage> {
 
           Padding(
 
-            padding: const EdgeInsets.all(16),
+            padding:
+            const EdgeInsets.all(16),
 
             child: Column(
 
@@ -234,7 +217,8 @@ class _DrawPageState extends State<DrawPage> {
 
                     Expanded(
 
-                      child: ElevatedButton(
+                      child:
+                      ElevatedButton(
 
                         onPressed: () {
 
@@ -254,11 +238,14 @@ class _DrawPageState extends State<DrawPage> {
                       ),
                     ),
 
-                    const SizedBox(width: 16),
+                    const SizedBox(
+                      width: 16,
+                    ),
 
                     Expanded(
 
-                      child: ElevatedButton(
+                      child:
+                      ElevatedButton(
 
                         onPressed: () async {
 
@@ -273,27 +260,58 @@ class _DrawPageState extends State<DrawPage> {
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(
+                  height: 24,
+                ),
 
                 isLoading
 
-                    ? const CircularProgressIndicator()
+                    ? const CircularProgressIndicator(
+                  strokeWidth: 6,
+                )
 
-                    : Text(
+                    : Column(
 
-                  prediction.isEmpty
+                  children: [
 
-                      ? "Draw something"
+                    Text(
 
-                      : "$prediction "
-                      "(${(confidence * 100).toStringAsFixed(1)}%)",
+                      prediction.isEmpty
 
-                  style: const TextStyle(
+                          ? "Draw something"
 
-                    fontSize: 20,
+                          : prediction,
 
-                    fontWeight: FontWeight.bold,
-                  ),
+                      style:
+                      const TextStyle(
+
+                        fontSize: 28,
+
+                        fontWeight:
+                        FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 12,
+                    ),
+
+                    LinearProgressIndicator(
+
+                      value: confidence,
+
+                      minHeight: 10,
+                    ),
+
+                    const SizedBox(
+                      height: 8,
+                    ),
+
+                    Text(
+
+                      "${(confidence * 100).toStringAsFixed(1)}% confidence",
+                    ),
+                  ],
                 ),
               ],
             ),
